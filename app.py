@@ -218,8 +218,6 @@ def generate_response_with_timeout(question, candidate_response, timeout=8):
                          f"""
 You are an evaluation instructor. Evaluate whether the candidate's response aligns with the interview question: "{question}".  
 
-Return your output in this exact format:  
-[One concise evaluation sentence (max 2 sentences)]. Score: <integer between -10 and 100>  
 
 ### Scoring Rules (strict and decisive):  
 - -10 → background noise, gibberish, or irrelevant chatter only.  
@@ -395,7 +393,7 @@ After the score, include the following sections:
    - Conclude with whether the candidate shows strong potential and readiness for the role.  
 
 2. **Key Strengths**  
-   - List 3–5 bullet points highlighting the strongest qualities demonstrated.  
+   - List 3–5 bullet points highlighting the strongest qualities demonstrated through out the conversation.  
    - Focus on technical accuracy, clarity of thought, problem-solving, communication, and impactful experiences.  
 
 3. **Areas for Improvement**  
@@ -403,9 +401,9 @@ After the score, include the following sections:
    - Provide constructive, specific, and professional suggestions to guide improvement.  
 
 4. **Detailed Section-wise Feedback**  
-   - **Technical Knowledge (30%)** – Evaluate accuracy, depth of understanding, problem-solving approach, and ability to handle technical challenges. Include a score (0–100).  
-   - **Communication & Clarity (30%)** – Assess articulation, reasoning, structured explanations, and confidence. Include a score (0–100).  
-   - **Project Understanding & Impact (40%)** – Assess how well the candidate explained project work, problem-solving contributions, innovations, measurable results, and overall impact. Include a score (0–100).  
+   - **Technical Knowledge** – Evaluate accuracy, depth of understanding, problem-solving approach, and ability to handle technical challenges. Include a score (0–100).  
+   - **Communication & Clarity** – Assess articulation, reasoning, structured explanations, and confidence. Include a score (0–100).  
+   - **Project Understanding & Impact** – Assess how well the candidate explained project work, problem-solving contributions, innovations, measurable results, and overall impact. Include a score (0–100).  
 
 5. **Additional Remarks (if applicable)**  
    - Comment on professional demeanor, confidence, adaptability, or time management.  
