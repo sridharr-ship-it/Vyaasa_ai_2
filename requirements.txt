@@ -1,0 +1,12 @@
+streamlit
+streamlit-audiorecorder
+llama-index-vector-stores-qdrant 
+llama-index-readers-file 
+llama-index-embeddings-fastembed 
+audio-recorder-streamlit
+python-dotenv
+pydub
+gtts
+llama-index-llms-groq
+groq
+
