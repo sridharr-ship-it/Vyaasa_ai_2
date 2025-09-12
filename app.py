@@ -535,11 +535,11 @@ def recognize_speech_enhanced():
             recording_color="#e74c3c",
             neutral_color="#34495e",
             icon_name="microphone",
-            icon_size="6x",
+            icon_size="3x",
             key=f"audio_recorder_{st.session_state.current_audio_key}",
             auto_start=True,
             sample_rate=16000,
-            pause_threshold=3.0
+            pause_threshold=2.0
         )
 
         if audio_bytes:
@@ -547,14 +547,10 @@ def recognize_speech_enhanced():
             st.session_state.current_audio_key += 1
 
             with st.spinner("🔄 Processing your response..."):
-               
-
-                # Fallback → Groq Whisper
-                logger.info("Falling back to Groq Whisper API")
-                st.info("🔍 Falling back to Groq Whisper...")
+            
                 try:
                     client = groq.Client()
-                    speech_audio = apply_vad(audio_bytes, aggressiveness=0)
+                    speech_audio = apply_vad(audio_bytes, aggressiveness=2)
 
                     # Export to BytesIO
                     speech_bytes = io.BytesIO()
