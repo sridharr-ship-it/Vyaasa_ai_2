@@ -35,7 +35,6 @@ from collections import deque
 import io
 import pydub
 import streamlit as st
-from streamlit_webrtc import WebRtcMode, webrtc_streamer
 import groq
 import os
 from dotenv import load_dotenv
