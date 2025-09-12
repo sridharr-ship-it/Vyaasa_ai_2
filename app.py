@@ -3,6 +3,7 @@ import streamlit as st
 from llama_index.llms.groq import Groq
 from dotenv import load_dotenv
 import os
+import webrtcvad
 from gtts import gTTS
 import qdrant_client
 import tempfile
@@ -496,7 +497,33 @@ def play_tts_with_display(text):
         st.session_state.audio_playing = False
         status.empty()
 
+@log_function_call
+def apply_vad(audio_bytes, aggressiveness=3, frame_ms=30):
+    """Filter out non-speech using WebRTC VAD and return speech-only audio"""
+    logger.info(f"Applying VAD with aggressiveness {aggressiveness}")
+    
+    audio = AudioSegment.from_file(io.BytesIO(audio_bytes))
+    audio = audio.set_frame_rate(16000).set_channels(1).set_sample_width(2)
 
+    vad = webrtcvad.Vad(aggressiveness)
+    frame_size = int(16000 * frame_ms / 1000) * 2  # bytes per frame
+    raw_data = audio.raw_data
+
+    speech_audio = AudioSegment.silent(duration=0)
+    speech_frames = 0
+    total_frames = 0
+    
+    for i in range(0, len(raw_data) - frame_size + 1, frame_size):
+        frame = raw_data[i:i + frame_size]
+        total_frames += 1
+        if len(frame) == frame_size and vad.is_speech(frame, 16000):
+            speech_frames += 1
+            start_ms = (i / (16000 * 2)) * 1000
+            speech_audio += audio[start_ms:start_ms + frame_ms]
+
+    logger.info(f"VAD processed {total_frames} frames, {speech_frames} contain speech")
+    return speech_audio
+    
 @log_function_call
 def recognize_speech_enhanced():
     """Enhanced speech recognition with fallback mechanisms."""
@@ -520,25 +547,24 @@ def recognize_speech_enhanced():
             st.session_state.current_audio_key += 1
 
             with st.spinner("🔄 Processing your response..."):
+               
 
+                # Fallback → Groq Whisper
+                logger.info("Falling back to Groq Whisper API")
+                st.info("🔍 Falling back to Groq Whisper...")
                 try:
                     client = groq.Client()
+                    speech_audio = apply_vad(audio_bytes, aggressiveness=0)
 
-                    # Create audio file for transcription
-                    audio_segment = AudioSegment.from_raw(io.BytesIO(audio_bytes), 
-                                                        sample_width=2, 
-                                                        frame_rate=16000, 
-                                                        channels=1)
-                    
-                    # Export to WAV format in memory
-                    wav_io = io.BytesIO()
-                    audio_segment.export(wav_io, format="wav")
-                    wav_io.seek(0)
-                    wav_io.name = "speech.wav"
+                    # Export to BytesIO
+                    speech_bytes = io.BytesIO()
+                    speech_audio.export(speech_bytes, format="wav")
+                    speech_bytes.name = "speech.wav"
+                    speech_bytes.seek(0)
 
                     logger.info("Sending audio to Groq Whisper API")
                     transcription = client.audio.transcriptions.create(
-                        file=wav_io,
+                        file=speech_bytes,
                         model="whisper-large-v3",
                         temperature=0.0,
                         response_format="text",
@@ -564,7 +590,6 @@ def recognize_speech_enhanced():
         logger.error(f"Audio recording error: {e}")
         st.error(f"⚠️ Audio recording error: {str(e)}")
         return None
-
 
 @log_function_call
 def get_remaining_time():
@@ -950,13 +975,10 @@ Your primary goal is to conduct a rigorous technical interview grounded entirely
         # Display timer - only show if more than 30 seconds remaining
         if remaining_time > 30:
             mins, secs = divmod(int(remaining_time), 60)
-            st.info(f"⏰ Time remaining: {mins:02d}:{secs:02d}")
-        elif remaining_time > 0:
-            st.warning(f"⚠️ {int(remaining_time)} seconds remaining")
-
+            
+        
         # Time warning - show once when approaching end
         if remaining_time < 60 and remaining_time > 30 and not st.session_state.get('time_warning_shown', False):
-            st.warning("⏰ Less than 1 minute remaining. Please keep responses concise.")
             st.session_state.time_warning_shown = True
 
         if st.session_state.chat_history:
