@@ -10,4 +10,5 @@ gtts
 llama-index-llms-groq
 groq
 webrtcvad
+fastembed
 
