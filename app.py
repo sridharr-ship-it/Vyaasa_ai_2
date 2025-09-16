@@ -23,27 +23,10 @@ from llama_index.embeddings.fastembed import FastEmbedEmbedding
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.llms import ChatMessage, MessageRole
 import uuid
-import json
-import numpy as np
 import concurrent.futures
 import groq
 import re
 from pydub import AudioSegment
-import logging
-import queue
-import time
-from collections import deque
-import io
-import pydub
-import streamlit as st
-import groq
-import os
-from dotenv import load_dotenv
-import io
-import os
-import numpy as np
-from pydub import AudioSegment
-import streamlit as st
 import logging
 from functools import wraps
 
@@ -56,8 +39,7 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
-BUFFER_DURATION = 5  # seconds
-MAX_CAPTION_LINES = 3
+
 # Create logger
 logger = logging.getLogger(__name__)
 
@@ -103,7 +85,6 @@ if not os.path.exists(TRANSCRIPT_DIR):
     logger.info(f"Created transcript directory: {TRANSCRIPT_DIR}")
 
 
-# FIXED: Initialize models only once using @st.cache_resource
 @st.cache_resource
 def initialize_models():
     """Initialize LLM and embedding models only once"""
@@ -131,7 +112,6 @@ with col1:
     st.title("📄 Automated Resume Interview Assistant")
 
 
-# FIXED: Initialize session state only once
 def initialize_session_state():
     """Initialize session state with default values"""
     defaults = {
@@ -154,12 +134,7 @@ def initialize_session_state():
         "transcript_file_path": None,
         "overall_evaluation": None,
         "generating_overall_evaluation": False,
-        "background_noise": 0,
-        "caption_history": deque(maxlen=MAX_CAPTION_LINES),
-        "full_transcript": [],
-        "time_warning_shown": False,
-        "waiting_for_answer": False,
-        "current_question_asked": False
+        "time_warning_shown": False
     }
 
     for key, val in defaults.items():
@@ -497,6 +472,7 @@ def play_tts_with_display(text):
         st.session_state.audio_playing = False
         status.empty()
 
+
 @log_function_call
 def apply_vad(audio_bytes, aggressiveness=3, frame_ms=30):
     """Filter out non-speech using WebRTC VAD and return speech-only audio"""
@@ -524,6 +500,7 @@ def apply_vad(audio_bytes, aggressiveness=3, frame_ms=30):
     logger.info(f"VAD processed {total_frames} frames, {speech_frames} contain speech")
     return speech_audio
     
+
 @log_function_call
 def recognize_speech_enhanced():
     """Enhanced speech recognition with fallback mechanisms."""
@@ -587,6 +564,7 @@ def recognize_speech_enhanced():
         st.error(f"⚠️ Audio recording error: {str(e)}")
         return None
 
+
 @log_function_call
 def get_remaining_time():
     """Calculate remaining interview time"""
@@ -639,13 +617,11 @@ def save_transcript_to_file():
 
             f.write(f"Total Questions: {st.session_state.question_count}\n")
             if st.session_state.total_answer_time > 0:
-                avg_time = st.session_state.total_answer_time / max(1, len([h for h in st.session_state.chat_history if
-                                                                            h[0] == "You"]))
+                avg_time = st.session_state.total_answer_time / max(1, len([h for h in st.session_state.chat_history if h[0] == "You"]))
                 f.write(f"Average Response Time: {avg_time:.1f} seconds\n")
 
             if st.session_state.evaluations:
-                avg_score = sum([eval_data['score'] for eval_data in st.session_state.evaluations]) / len(
-                    st.session_state.evaluations)
+                avg_score = sum([eval_data['score'] for eval_data in st.session_state.evaluations]) / len(st.session_state.evaluations)
                 f.write(f"Average Score: {avg_score:.1f}/100\n")
 
             f.write("\n" + "=" * 50 + "\n")
@@ -739,11 +715,9 @@ def get_score_color(score):
 def display_live_transcription():
     """Display live transcription in the sidebar with evaluations"""
     with col2:
-
         chat_container = st.container()
 
         with chat_container:
-
             eval_index = 0
             for i, (role, message) in enumerate(st.session_state.chat_history):
                 timestamp = datetime.now().strftime("%H:%M:%S")
@@ -926,20 +900,17 @@ Your primary goal is to conduct a rigorous technical interview grounded entirely
 
         if st.button("🎯 Start Automated Interview", type="primary"):
             try:
-
                 st.session_state.interview_active = True
                 st.session_state.interview_start_time = datetime.now()
                 st.session_state.chat_history = []
                 st.session_state.evaluations = []
-                st.session_state.question_count = 0  # Start at 0
+                st.session_state.question_count = 0
                 st.session_state.current_audio_key = 0
                 st.session_state.processing_response = False
                 st.session_state.evaluating_response = False
                 st.session_state.overall_evaluation = None
                 st.session_state.generating_overall_evaluation = False
                 st.session_state.time_warning_shown = False
-                st.session_state.waiting_for_answer = False
-                st.session_state.current_question_asked = False
 
                 intro_prompt = """
                 You are Vyaasa, an AI interviewer.
@@ -960,7 +931,7 @@ Your primary goal is to conduct a rigorous technical interview grounded entirely
                 st.error(f"Error starting interview: {e}")
                 st.session_state.interview_active = False
 
-    # Main interview logic - FIXED VERSION
+    # Main interview logic
     elif (st.session_state.interview_active and
           st.session_state.chat_engine and
           not st.session_state.audio_playing):
@@ -968,11 +939,6 @@ Your primary goal is to conduct a rigorous technical interview grounded entirely
         remaining_time = get_remaining_time()
         completed_answers = len([h for h in st.session_state.chat_history if h[0] == "You"])
 
-        # Display timer - only show if more than 30 seconds remaining
-        if remaining_time > 30:
-            mins, secs = divmod(int(remaining_time), 60)
-            
-        
         # Time warning - show once when approaching end
         if remaining_time < 60 and remaining_time > 30 and not st.session_state.get('time_warning_shown', False):
             st.session_state.time_warning_shown = True
@@ -992,7 +958,7 @@ Your primary goal is to conduct a rigorous technical interview grounded entirely
                     st.session_state.answer_timer_start = datetime.now()
 
                 # Allow candidate to respond even if time is low - only stop if absolutely critical
-                if remaining_time > 3:  # Allow response if more than 3 seconds
+                if remaining_time > 3:
                     speech = recognize_speech_enhanced()
                     if speech and speech.strip():
                         if st.session_state.answer_timer_start:
@@ -1089,7 +1055,6 @@ Your primary goal is to conduct a rigorous technical interview grounded entirely
                     st.session_state.evaluating_response = False
                     st.rerun()
 
-
     # Show evaluation status when evaluating
     elif st.session_state.evaluating_response:
         st.info("🔍 Evaluating your response... Please wait.")
@@ -1155,37 +1120,31 @@ Your primary goal is to conduct a rigorous technical interview grounded entirely
                 # Reset all session state except resume data and models
                 for key in st.session_state.keys():
                     if key not in ["chat_engine", "resume_uploaded"]:
-                        if key in ["caption_history", "full_transcript"]:
-                            st.session_state[key] = deque(maxlen=MAX_CAPTION_LINES) if key == "caption_history" else []
-                        else:
-                            # Use defaults dict for reset values
-                            defaults = {
-                                "chat_engine": None,
-                                "chat_history": [],
-                                "evaluations": [],
-                                "question_count": 0,
-                                "interview_active": False,
-                                "interview_ended": False,
-                                "current_question": "",
-                                "resume_uploaded": False,
-                                "interview_start_time": None,
-                                "total_answer_time": 0.0,
-                                "answer_timer_start": None,
-                                "audio_playing": False,
-                                "current_audio_key": 0,
-                                "processing_response": False,
-                                "evaluating_response": False,
-                                "session_id": str(uuid.uuid4()),
-                                "transcript_file_path": None,
-                                "overall_evaluation": None,
-                                "generating_overall_evaluation": False,
-                                "background_noise": 0,
-                                "time_warning_shown": False,
-                                "waiting_for_answer": False,
-                                "current_question_asked": False
-                            }
-                            if key in defaults:
-                                st.session_state[key] = defaults[key]
+                        # Use defaults dict for reset values
+                        defaults = {
+                            "chat_engine": None,
+                            "chat_history": [],
+                            "evaluations": [],
+                            "question_count": 0,
+                            "interview_active": False,
+                            "interview_ended": False,
+                            "current_question": "",
+                            "resume_uploaded": False,
+                            "interview_start_time": None,
+                            "total_answer_time": 0.0,
+                            "answer_timer_start": None,
+                            "audio_playing": False,
+                            "current_audio_key": 0,
+                            "processing_response": False,
+                            "evaluating_response": False,
+                            "session_id": str(uuid.uuid4()),
+                            "transcript_file_path": None,
+                            "overall_evaluation": None,
+                            "generating_overall_evaluation": False,
+                            "time_warning_shown": False
+                        }
+                        if key in defaults:
+                            st.session_state[key] = defaults[key]
 
                 st.session_state.session_id = str(uuid.uuid4())
                 st.rerun()
