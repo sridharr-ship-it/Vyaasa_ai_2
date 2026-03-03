@@ -1,3 +1,5 @@
+setuptools
+
 streamlit
 streamlit-audiorecorder
 llama-index-vector-stores-qdrant 
